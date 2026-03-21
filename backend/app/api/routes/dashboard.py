@@ -3,7 +3,6 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_session
-from app.models.agent_run import AgentRun
 from app.models.application import Application
 from app.models.cover_letter import CoverLetter
 from app.models.job_analysis import JobAnalysis
