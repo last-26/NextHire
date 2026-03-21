@@ -53,6 +53,10 @@ def extract_keywords(text: str, top_n: int = 20) -> list[dict]:
 def find_skill_matches(job_keywords: list[str], cv_keywords: list[str]) -> dict:
     """Find matching and missing skills between job and CV keywords.
 
+    Uses fuzzy matching: a job skill is considered matched if it appears
+    as a substring in any CV skill or vice versa (case-insensitive).
+    For example, "React" matches "React.js", "JavaScript" matches "JavaScript/TypeScript".
+
     Args:
         job_keywords: Keywords from job posting.
         cv_keywords: Keywords from CV.
@@ -60,16 +64,35 @@ def find_skill_matches(job_keywords: list[str], cv_keywords: list[str]) -> dict:
     Returns:
         Dict with 'matched', 'missing', and 'match_percentage' keys.
     """
-    job_set = {kw.lower() for kw in job_keywords}
-    cv_set = {kw.lower() for kw in cv_keywords}
+    if not job_keywords:
+        return {"matched": [], "missing": [], "match_percentage": 0.0}
 
-    matched = job_set & cv_set
-    missing = job_set - cv_set
+    job_lower = [kw.lower().strip() for kw in job_keywords if kw.strip()]
+    cv_lower = [kw.lower().strip() for kw in cv_keywords if kw.strip()]
 
-    match_pct = (len(matched) / len(job_set) * 100) if job_set else 0
+    matched = []
+    missing = []
+
+    for job_skill in job_lower:
+        found = False
+        # Check exact match first
+        if job_skill in cv_lower:
+            found = True
+        else:
+            # Check substring match (either direction)
+            for cv_skill in cv_lower:
+                if job_skill in cv_skill or cv_skill in job_skill:
+                    found = True
+                    break
+        if found:
+            matched.append(job_skill)
+        else:
+            missing.append(job_skill)
+
+    match_pct = (len(matched) / len(job_lower) * 100) if job_lower else 0
 
     return {
-        "matched": sorted(matched),
-        "missing": sorted(missing),
+        "matched": sorted(set(matched)),
+        "missing": sorted(set(missing)),
         "match_percentage": round(match_pct, 1),
     }

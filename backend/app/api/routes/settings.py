@@ -2,10 +2,17 @@
 
 import time
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlalchemy import delete, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_session
 from app.config import settings
 from app.llm.router import ModelRouter
+from app.models.agent_run import AgentRun
+from app.models.application import Application
+from app.models.cover_letter import CoverLetter
+from app.models.job_analysis import JobAnalysis
 
 router = APIRouter()
 
@@ -75,3 +82,30 @@ async def test_connection():
         }
 
     return results
+
+
+@router.get("/settings/db-stats")
+async def get_db_stats(session: AsyncSession = Depends(get_session)):
+    """Return counts for each table."""
+    analyses = await session.scalar(select(func.count()).select_from(JobAnalysis))
+    applications = await session.scalar(select(func.count()).select_from(Application))
+    cover_letters = await session.scalar(select(func.count()).select_from(CoverLetter))
+    agent_runs = await session.scalar(select(func.count()).select_from(AgentRun))
+    return {
+        "analyses": analyses or 0,
+        "applications": applications or 0,
+        "cover_letters": cover_letters or 0,
+        "agent_runs": agent_runs or 0,
+    }
+
+
+@router.delete("/settings/reset-db")
+async def reset_database(session: AsyncSession = Depends(get_session)):
+    """Delete all data from application tables (analyses, applications, cover letters, agent runs)."""
+    # Order matters due to foreign keys
+    await session.execute(delete(Application))
+    await session.execute(delete(CoverLetter))
+    await session.execute(delete(JobAnalysis))
+    await session.execute(delete(AgentRun))
+    await session.commit()
+    return {"status": "ok", "message": "All data cleared"}

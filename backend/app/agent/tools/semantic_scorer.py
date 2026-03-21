@@ -69,7 +69,7 @@ def compute_weighted_score(
         Weighted score (0-100).
     """
     if weights is None:
-        weights = {"semantic": 0.4, "keyword": 0.6}
+        weights = {"semantic": 0.35, "keyword": 0.65}
 
     score = (
         semantic_score * 100 * weights["semantic"]

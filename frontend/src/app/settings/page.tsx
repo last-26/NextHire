@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Cpu, Zap, Brain, Info, Settings2,
   CheckCircle2, XCircle, Loader2, Wifi, Clock,
+  Trash2, AlertTriangle, Database,
 } from "lucide-react";
 import { settingsApi } from "@/lib/api";
 
@@ -30,6 +31,13 @@ interface ConnectionResults {
   power_model: ConnectionResult;
 }
 
+interface DbStats {
+  analyses: number;
+  applications: number;
+  cover_letters: number;
+  agent_runs: number;
+}
+
 const PROVIDER_DISPLAY: Record<string, { name: string; color: string; icon: string }> = {
   bedrock: { name: "AWS Bedrock", color: "#FF9900", icon: "A" },
   anthropic: { name: "Anthropic", color: "#D4A27F", icon: "C" },
@@ -49,12 +57,17 @@ function extractModelName(modelId: string): string {
 export default function SettingsPage() {
   const [config, setConfig] = useState<SettingsConfig | null>(null);
   const [connection, setConnection] = useState<ConnectionResults | null>(null);
+  const [dbStats, setDbStats] = useState<DbStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [testing, setTesting] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [confirmReset, setConfirmReset] = useState(false);
 
   useEffect(() => {
-    settingsApi.get()
-      .then((res) => setConfig(res.data))
+    Promise.all([
+      settingsApi.get().then((res) => setConfig(res.data)),
+      settingsApi.dbStats().then((res) => setDbStats(res.data)),
+    ])
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -316,6 +329,103 @@ export default function SettingsPage() {
                 <span className="font-medium text-gray-800">7 nodes (parse → analyze → generate → reflect)</span>
               </div>
             </div>
+          </CardContent>
+        </Card>
+        {/* Danger Zone */}
+        <Card className="overflow-hidden border-0 ring-1 ring-red-200 shadow-sm">
+          <CardHeader className="bg-gradient-to-r from-red-50/80 to-orange-50/80 border-b border-red-100/50">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-red-200">
+                <Database className="h-4 w-4 text-red-500" />
+              </div>
+              <div>
+                <CardTitle className="text-base font-semibold">Database</CardTitle>
+                <CardDescription className="text-xs">
+                  View data counts and manage stored data
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-5 space-y-4">
+            {/* DB Stats */}
+            {dbStats && (
+              <div className="grid grid-cols-2 gap-3">
+                {([
+                  ["Analyses", dbStats.analyses],
+                  ["Applications", dbStats.applications],
+                  ["Cover Letters", dbStats.cover_letters],
+                  ["Agent Runs", dbStats.agent_runs],
+                ] as const).map(([label, count]) => (
+                  <div key={label} className="flex items-center justify-between rounded-lg bg-gray-50 p-3">
+                    <span className="text-sm text-muted-foreground">{label}</span>
+                    <span className="text-sm font-bold tabular-nums">{count}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Reset Button */}
+            {!confirmReset ? (
+              <button
+                onClick={() => setConfirmReset(true)}
+                className="w-full flex items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2.5
+                  text-sm font-medium text-red-600
+                  transition-all duration-200
+                  hover:bg-red-50 hover:border-red-300"
+              >
+                <Trash2 className="h-4 w-4" />
+                Clear All Data
+              </button>
+            ) : (
+              <div className="space-y-3 rounded-lg border border-red-300 bg-red-50 p-4 animate-slide-up">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                  <p className="text-sm text-red-800">
+                    This will permanently delete all analyses, applications, cover letters,
+                    and agent runs. This action cannot be undone.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={async () => {
+                      setResetting(true);
+                      try {
+                        await settingsApi.resetDb();
+                        const res = await settingsApi.dbStats();
+                        setDbStats(res.data);
+                      } catch {
+                        // ignore
+                      } finally {
+                        setResetting(false);
+                        setConfirmReset(false);
+                      }
+                    }}
+                    disabled={resetting}
+                    className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2
+                      text-sm font-medium text-white
+                      transition-all duration-200
+                      hover:bg-red-700
+                      disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {resetting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4" />
+                    )}
+                    {resetting ? "Clearing..." : "Yes, delete everything"}
+                  </button>
+                  <button
+                    onClick={() => setConfirmReset(false)}
+                    className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2
+                      text-sm font-medium text-gray-700
+                      transition-all duration-200
+                      hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>

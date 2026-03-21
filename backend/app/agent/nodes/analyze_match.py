@@ -22,7 +22,7 @@ CV:
 {parsed_cv}
 
 Semantic Similarity Score: {semantic_score}/1.0
-Keyword Match: {keyword_match_pct}%
+Skill Match: {skill_match_pct}% ({matched_count}/{total_skills} skills)
 Matched Skills: {matched_skills}
 Missing Skills: {missing_skills}
 
@@ -47,10 +47,23 @@ async def analyze_match(state: AgentState) -> dict:
     cv_text = state["cv_content"]
     semantic_score = compute_semantic_similarity(job_text, cv_text)
 
-    # Compute keyword matches
-    job_kw = [k["keyword"] for k in state.get("job_keywords", [])]
-    cv_kw = [k["keyword"] for k in state.get("cv_keywords", [])]
-    skill_match = find_skill_matches(job_kw, cv_kw)
+    # Use LLM-parsed skills for matching (much more accurate than TF-IDF bigrams)
+    parsed_job = state.get("parsed_job", {})
+    parsed_cv = state.get("parsed_cv", {})
+
+    job_skills = (
+        parsed_job.get("required_skills", [])
+        + parsed_job.get("preferred_skills", [])
+    )
+    cv_skills = parsed_cv.get("skills", [])
+
+    # If parsed skills are available, use them; otherwise fall back to TF-IDF keywords
+    if job_skills and cv_skills:
+        skill_match = find_skill_matches(job_skills, cv_skills)
+    else:
+        job_kw = [k["keyword"] for k in state.get("job_keywords", [])]
+        cv_kw = [k["keyword"] for k in state.get("cv_keywords", [])]
+        skill_match = find_skill_matches(job_kw, cv_kw)
 
     # Compute weighted ATS score
     overall_score = compute_weighted_score(semantic_score, skill_match["match_percentage"])
@@ -62,10 +75,12 @@ async def analyze_match(state: AgentState) -> dict:
         {
             "role": "user",
             "content": ANALYSIS_PROMPT.format(
-                parsed_job=json.dumps(state.get("parsed_job", {}), indent=2),
-                parsed_cv=json.dumps(state.get("parsed_cv", {}), indent=2),
+                parsed_job=json.dumps(parsed_job, indent=2),
+                parsed_cv=json.dumps(parsed_cv, indent=2),
                 semantic_score=round(semantic_score, 3),
-                keyword_match_pct=skill_match["match_percentage"],
+                skill_match_pct=skill_match["match_percentage"],
+                matched_count=len(skill_match["matched"]),
+                total_skills=len(skill_match["matched"]) + len(skill_match["missing"]),
                 matched_skills=", ".join(skill_match["matched"]),
                 missing_skills=", ".join(skill_match["missing"]),
             ),

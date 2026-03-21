@@ -55,4 +55,6 @@ export const dashboardApi = {
 export const settingsApi = {
   get: () => api.get("/settings"),
   testConnection: () => api.post("/settings/test-connection"),
+  dbStats: () => api.get("/settings/db-stats"),
+  resetDb: () => api.delete("/settings/reset-db"),
 };
