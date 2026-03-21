@@ -1,6 +1,6 @@
 """Placeholder: Direct Anthropic API provider."""
 
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 from app.llm.base import BaseLLMProvider
 

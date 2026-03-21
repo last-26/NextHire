@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import health, analyze, applications, cover_letter, cv_review, agent
+from app.api.routes import agent, analyze, applications, cover_letter, cv_review, health
 from app.config import settings
 
 

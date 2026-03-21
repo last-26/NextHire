@@ -1,5 +1,4 @@
-import json
-from typing import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 import boto3
 
@@ -21,17 +20,22 @@ class BedrockProvider(BaseLLMProvider):
 
     async def invoke(self, messages: list[dict], model: str, **kwargs) -> str:
         """Single completion via Bedrock Converse API."""
-        # Format messages for Bedrock
         bedrock_messages = self._format_messages(messages)
+        system_prompt = self._get_system_prompt(messages)
 
-        response = self.client.converse(
-            modelId=model,
-            messages=bedrock_messages,
-            inferenceConfig={
+        call_params = {
+            "modelId": model,
+            "messages": bedrock_messages,
+            "inferenceConfig": {
                 "maxTokens": kwargs.get("max_tokens", 4096),
                 "temperature": kwargs.get("temperature", 0.7),
             },
-        )
+        }
+
+        if system_prompt:
+            call_params["system"] = [{"text": system_prompt}]
+
+        response = self.client.converse(**call_params)
 
         return response["output"]["message"]["content"][0]["text"]
 
@@ -40,15 +44,21 @@ class BedrockProvider(BaseLLMProvider):
     ) -> AsyncGenerator[str, None]:
         """Streaming completion via Bedrock ConverseStream API."""
         bedrock_messages = self._format_messages(messages)
+        system_prompt = self._get_system_prompt(messages)
 
-        response = self.client.converse_stream(
-            modelId=model,
-            messages=bedrock_messages,
-            inferenceConfig={
+        call_params = {
+            "modelId": model,
+            "messages": bedrock_messages,
+            "inferenceConfig": {
                 "maxTokens": kwargs.get("max_tokens", 4096),
                 "temperature": kwargs.get("temperature", 0.7),
             },
-        )
+        }
+
+        if system_prompt:
+            call_params["system"] = [{"text": system_prompt}]
+
+        response = self.client.converse_stream(**call_params)
 
         for event in response["stream"]:
             if "contentBlockDelta" in event:
