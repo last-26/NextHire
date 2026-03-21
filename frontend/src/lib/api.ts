@@ -7,6 +7,7 @@ export const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
+  timeout: 300000, // 5 min — agent pipeline can take 1-2 min
 });
 
 // Applications

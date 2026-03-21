@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { AxiosError } from "axios";
 import { Upload, Link, Loader2, Sparkles, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AgentStream } from "@/components/agent/AgentStream";
@@ -110,7 +111,14 @@ export default function AnalyzePage() {
       setAnalysis(response.data);
     } catch (err: unknown) {
       clearSimulation();
-      const message = err instanceof Error ? err.message : "Analysis failed";
+      let message = "Analysis failed";
+      if (err instanceof AxiosError) {
+        message = err.response?.data?.detail || err.message;
+        if (err.code === "ECONNABORTED") message = "Request timed out — the analysis took too long. Please try again.";
+        if (err.code === "ERR_NETWORK") message = "Network error — could not reach the backend. Check if the server is running.";
+      } else if (err instanceof Error) {
+        message = err.message;
+      }
       setError(message);
       // Mark current running step as failed
       setSteps((prev) =>

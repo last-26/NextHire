@@ -305,10 +305,12 @@ NextHire/
 │   │   │   │   ├── Sidebar.tsx        # App navigation sidebar
 │   │   │   │   └── Header.tsx
 │   │   │   │
+│   │   │   ├── ErrorBoundary.tsx      # Catches browser-extension DOM errors, auto-recovers
+│   │   │   │
 │   │   │   ├── agent/
-│   │   │   │   ├── AgentStream.tsx    # ★ Real-time agent step viewer (SSE consumer)
+│   │   │   │   ├── AgentStream.tsx    # Step timeline with mini segment bar
 │   │   │   │   ├── StepCard.tsx       # Individual step card (status, output, duration)
-│   │   │   │   └── AgentProgress.tsx  # Progress bar across steps
+│   │   │   │   └── AgentProgress.tsx  # Progress bar (unused — kept for future SSE streaming)
 │   │   │   │
 │   │   │   ├── analysis/
 │   │   │   │   ├── ScoreCard.tsx      # ATS match score display (circular gauge)
@@ -326,7 +328,7 @@ NextHire/
 │   │   │       └── CoverLetterCard.tsx
 │   │   │
 │   │   ├── lib/
-│   │   │   ├── api.ts                 # Axios/fetch API client for backend
+│   │   │   ├── api.ts                 # Axios API client (5min timeout for analysis)
 │   │   │   ├── sse.ts                 # SSE event source helper for agent streaming
 │   │   │   └── utils.ts              # Utility functions
 │   │   │
@@ -679,3 +681,16 @@ docker compose exec backend pytest -v  # Tests in container
 
 **CI/CD:**
 - Fixed all GitHub Actions jobs (backend-lint, frontend-lint, frontend-build)
+
+### March 2026 — Stability Fixes
+
+**Frontend:**
+- Added `ErrorBoundary` component to catch browser-extension DOM interference (`insertBefore`/`removeChild` errors) — auto-recovers instead of crashing
+- Added `suppressHydrationWarning` to `<html>` and `<body>` tags in layout
+- Replaced fake 0% progress bar with simulated step-by-step pipeline animation (elapsed timer, mini segment bar, steps activate sequentially while waiting for API response)
+- Replaced conditional mounting/unmounting of Agent Pipeline and Analysis Report sections with always-mounted containers using `hidden` class to prevent React reconciliation errors
+- Set Axios timeout to 5 minutes (analysis pipeline can take 1-2 min with multiple LLM calls)
+- Improved error messages: shows backend detail instead of generic "Network Error"
+
+**Known Issue:**
+- Analysis currently returns as a single API response (no streaming). SSE endpoint exists (`/agent/stream/{run_id}`) but is a TODO stub. Frontend simulates step progression while waiting.
