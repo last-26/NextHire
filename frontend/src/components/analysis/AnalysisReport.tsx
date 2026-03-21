@@ -87,20 +87,31 @@ export function AnalysisReport({ analysis }: AnalysisReportProps) {
           <CardContent className="flex flex-col items-center pb-8">
             <ScoreCard score={analysis.overall_score || 0} />
             {matchResult && (
-              <div className="mt-5 flex items-center gap-4 text-xs text-muted-foreground">
+              <div className="mt-5 flex items-center gap-3 text-xs text-muted-foreground">
                 <div className="flex flex-col items-center gap-1">
-                  <span className="text-base font-bold text-foreground">
-                    {Math.round(matchResult.semantic_score)}%
+                  <span className="text-sm font-bold text-foreground">
+                    {Math.round(matchResult.semantic_score * 100)}%
                   </span>
                   <span>Semantic</span>
                 </div>
                 <div className="h-8 w-px bg-border" />
                 <div className="flex flex-col items-center gap-1">
-                  <span className="text-base font-bold text-foreground">
+                  <span className="text-sm font-bold text-foreground">
                     {Math.round(matchResult.keyword_match.match_percentage)}%
                   </span>
                   <span>Keyword</span>
                 </div>
+                {matchResult.llm_score != null && (
+                  <>
+                    <div className="h-8 w-px bg-border" />
+                    <div className="flex flex-col items-center gap-1">
+                      <span className="text-sm font-bold text-indigo-600">
+                        {Math.round(matchResult.llm_score)}
+                      </span>
+                      <span>AI Judge</span>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </CardContent>
@@ -152,6 +163,18 @@ export function AnalysisReport({ analysis }: AnalysisReportProps) {
                 {matchResult.llm_analysis.overall_assessment}
               </p>
             </div>
+
+            {/* Score Reasoning */}
+            {matchResult.llm_analysis.score_reasoning && (
+              <div className="rounded-xl border border-indigo-200/60 dark:border-indigo-800/40 bg-indigo-50/30 dark:bg-indigo-950/20 p-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mb-2">
+                  AI Score Reasoning
+                </h4>
+                <p className="text-sm leading-relaxed text-indigo-900 dark:text-indigo-200">
+                  {matchResult.llm_analysis.score_reasoning}
+                </p>
+              </div>
+            )}
 
             {/* Strengths & Weaknesses Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -228,6 +251,27 @@ export function AnalysisReport({ analysis }: AnalysisReportProps) {
                       </li>
                     ))}
                   </ul>
+                </div>
+              )}
+
+            {/* Transferable Skills */}
+            {matchResult.llm_analysis.transferable_skills &&
+              matchResult.llm_analysis.transferable_skills.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-semibold text-muted-foreground mb-3">
+                    Transferable Skills Identified
+                  </h4>
+                  <div className="flex flex-wrap gap-2">
+                    {matchResult.llm_analysis.transferable_skills.map((skill: string, i: number) => (
+                      <Badge
+                        key={i}
+                        variant="outline"
+                        className="border-indigo-200 bg-indigo-50/50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950/50 dark:text-indigo-300"
+                      >
+                        {skill}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               )}
           </CardContent>

@@ -87,12 +87,20 @@ export interface MatchResult {
     missing: string[];
     match_percentage: number;
   };
+  algorithmic_score: number;
+  llm_score: number | null;
   overall_score: number;
   llm_analysis: {
+    llm_score: number;
+    score_reasoning: string;
     overall_assessment: string;
     strengths: string[];
     weaknesses: string[];
     ats_tips: string[];
+    experience_match: string;
+    education_match: string;
+    culture_fit_indicators: string[];
+    transferable_skills: string[];
   };
 }
 

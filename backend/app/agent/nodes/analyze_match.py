@@ -11,7 +11,7 @@ from app.agent.tools.semantic_scorer import (
 )
 from app.llm.router import ModelRouter
 
-ANALYSIS_PROMPT = """You are an expert ATS (Applicant Tracking System) analyst.
+ANALYSIS_PROMPT = """You are an expert ATS (Applicant Tracking System) analyst and hiring consultant.
 
 Given the following parsed job posting and CV data, provide a detailed match analysis.
 
@@ -21,19 +21,30 @@ Job Posting:
 CV:
 {parsed_cv}
 
-Semantic Similarity Score: {semantic_score}/1.0
-Skill Match: {skill_match_pct}% ({matched_count}/{total_skills} skills)
-Matched Skills: {matched_skills}
-Missing Skills: {missing_skills}
+Algorithmic Metrics (for reference only — use your own judgment):
+- Semantic Similarity: {semantic_score}/1.0
+- Keyword Skill Match: {skill_match_pct}% ({matched_count}/{total_skills} skills)
+- Matched Skills: {matched_skills}
+- Missing Skills: {missing_skills}
 
 Provide a JSON response with:
+- llm_score: Your overall compatibility score (0-100 integer). Consider ALL of the following:
+  * Direct skill matches AND transferable/related skills (e.g., Vue.js experience partially covers React requirement)
+  * Experience depth and relevance (years, seniority level, domain match)
+  * Education fit
+  * Industry and role alignment
+  * Soft skills and cultural indicators
+  * How competitive this candidate would realistically be for this role
+  Do NOT just echo the algorithmic metrics above. Use your own holistic judgment.
+- score_reasoning: One paragraph explaining why you gave this score
 - overall_assessment: Brief assessment of the candidate's fit (2-3 sentences)
 - strengths: List of areas where the candidate is a strong match
 - weaknesses: List of areas where the candidate falls short
-- ats_tips: List of specific tips to improve ATS score
+- ats_tips: List of specific tips to improve ATS score for this specific job
 - experience_match: How well experience level matches (low/medium/high)
 - education_match: How well education matches (low/medium/high)
 - culture_fit_indicators: Any indicators of culture fit from the CV
+- transferable_skills: List of candidate skills that are not exact matches but are relevant/transferable
 
 Return ONLY valid JSON."""
 
@@ -65,13 +76,19 @@ async def analyze_match(state: AgentState) -> dict:
         cv_kw = [k["keyword"] for k in state.get("cv_keywords", [])]
         skill_match = find_skill_matches(job_kw, cv_kw)
 
-    # Compute weighted ATS score
-    overall_score = compute_weighted_score(semantic_score, skill_match["match_percentage"])
+    # Compute algorithmic ATS score (used as one input to hybrid score)
+    algorithmic_score = compute_weighted_score(
+        semantic_score, skill_match["match_percentage"]
+    )
 
-    # Get LLM analysis
+    # Get LLM analysis + LLM score
     router = ModelRouter()
     messages = [
-        {"role": "system", "content": "You are an expert ATS analyst. Return only valid JSON."},
+        {
+            "role": "system",
+            "content": "You are an expert ATS analyst and hiring consultant. "
+            "Return only valid JSON.",
+        },
         {
             "role": "user",
             "content": ANALYSIS_PROMPT.format(
@@ -99,9 +116,20 @@ async def analyze_match(state: AgentState) -> dict:
         else:
             llm_analysis = {"error": "Failed to parse analysis"}
 
+    # Hybrid scoring: algorithmic (50%) + LLM judgment (50%)
+    llm_score = llm_analysis.get("llm_score")
+    if isinstance(llm_score, int | float) and 0 <= llm_score <= 100:
+        # Hybrid: algorithmic grounds the score, LLM adds nuance
+        overall_score = round(algorithmic_score * 0.5 + float(llm_score) * 0.5, 1)
+    else:
+        # Fallback to pure algorithmic if LLM didn't return a valid score
+        overall_score = algorithmic_score
+
     match_result = {
         "semantic_score": round(semantic_score, 4),
         "keyword_match": skill_match,
+        "algorithmic_score": algorithmic_score,
+        "llm_score": llm_score,
         "overall_score": overall_score,
         "llm_analysis": llm_analysis,
     }
