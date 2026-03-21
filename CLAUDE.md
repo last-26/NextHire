@@ -611,6 +611,11 @@ docker compose exec backend pytest -v  # Tests in container
 - [x] Export analysis reports as PDF — GET /analyze/{id}/pdf with fpdf2
 - [x] Frontend UX — mobile responsive sidebar, consistent headers, accessibility
 
+### Phase 5b: Scoring Fix & Settings Enhancements (In Progress)
+- [ ] Fix ATS scoring — use parsed skills instead of TF-IDF bigrams for keyword matching
+- [ ] Add DB reset/clear functionality to Settings page
+- [ ] Settings page cache fix (Next.js dev server caching issue)
+
 ### Phase 6: Future Enhancements (Backlog)
 - [ ] Additional LLM providers (Anthropic direct, OpenAI, Gemini, Ollama)
 - [ ] Batch analysis (multiple job postings at once)
@@ -725,3 +730,7 @@ docker compose exec backend pytest -v  # Tests in container
 - Sidebar collapses to hamburger on mobile (`lg:` breakpoint)
 - Slide-out drawer with backdrop overlay, Escape key support
 - Content area has top padding on mobile for hamburger button
+
+**Known Issues:**
+- ATS scoring too low: keyword matching uses TF-IDF bigrams which rarely match exactly. Fix: use LLM-parsed skill lists instead.
+- Settings page: Next.js dev server caches old module versions; restart fixes it but shouldn't be needed.
