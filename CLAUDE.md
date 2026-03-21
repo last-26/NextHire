@@ -37,7 +37,7 @@ This is NOT a simple "prompt-in, text-out" wrapper. It is a **multi-step agent**
 │                     Next.js Frontend                         │
 │  ┌──────────┐ ┌───────────┐ ┌────────────┐ ┌────────────┐  │
 │  │Dashboard │ │  Analyze  │ │   Kanban   │ │  Settings  │  │
-│  │          │ │  + Agent  │ │   Board    │ │  (future)  │  │
+│  │          │ │  + Agent  │ │   Board    │ │  + DB Mgmt │  │
 │  │          │ │  Stream   │ │            │ │            │  │
 │  └──────────┘ └─────┬─────┘ └────────────┘ └────────────┘  │
 └─────────────────────┼───────────────────────────────────────┘
@@ -520,7 +520,7 @@ data: {"step": "reflect", "status": "completed", "output": {"quality_score": 8.5
 data: {"type": "complete", "run_id": "uuid", "total_duration_ms": 12400, "total_cost_usd": 0.045}
 ```
 
-Frontend consumes this via EventSource and updates the AgentStream component in real-time.
+Frontend consumes this via `fetch()` + `ReadableStream` (POST request, not EventSource) and updates the AgentStream component in real-time.
 
 ---
 
