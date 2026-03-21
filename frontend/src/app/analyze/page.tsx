@@ -351,11 +351,18 @@ export default function AnalyzePage() {
         </div>
       </div>
 
-      {/* Agent Pipeline Section */}
-      {(isRunning || steps.length > 0) && (
+      {/* Agent Pipeline Section — always mounted, hidden when inactive */}
+      <div
+        key="agent-pipeline"
+        className={`transition-all duration-500 ${
+          isRunning || steps.length > 0
+            ? "opacity-100"
+            : "hidden"
+        }`}
+      >
         <Card
           className={`
-            shadow-sm animate-slide-up transition-all duration-500
+            shadow-sm transition-all duration-500
             ${isRunning
               ? "border-indigo-500/30 shadow-[0_0_20px_-6px_hsl(245,58%,51%,0.15)]"
               : "border-border/60"
@@ -366,28 +373,26 @@ export default function AnalyzePage() {
             <CardTitle className="text-lg flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className={`
-                  flex h-8 w-8 items-center justify-center rounded-lg
+                  flex h-8 w-8 items-center justify-center rounded-lg transition-colors duration-300
                   ${isRunning
                     ? "bg-gradient-to-br from-indigo-500/15 to-purple-500/15 animate-pulse-gentle"
                     : "bg-green-100"
                   }
                 `}>
-                  <Sparkles className={`h-4 w-4 ${isRunning ? "text-indigo-500" : "text-green-600"}`} />
+                  <Sparkles className={`h-4 w-4 transition-colors duration-300 ${isRunning ? "text-indigo-500" : "text-green-600"}`} />
                 </div>
-                Agent Pipeline
-                {isRunning && (
-                  <span className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-xs font-medium text-indigo-500">
+                <span>Agent Pipeline</span>
+                {isRunning ? (
+                  <span className="ml-1 inline-flex items-center gap-1.5 rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-xs font-medium text-indigo-500">
                     <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
                     Running
                   </span>
-                )}
-                {!isRunning && steps.length > 0 && steps.every((s) => s.status === "completed") && (
-                  <span className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-green-500/10 px-2.5 py-0.5 text-xs font-medium text-green-600">
+                ) : steps.length > 0 && steps.every((s) => s.status === "completed") ? (
+                  <span className="ml-1 inline-flex items-center gap-1.5 rounded-full bg-green-500/10 px-2.5 py-0.5 text-xs font-medium text-green-600">
                     Complete
                   </span>
-                )}
+                ) : null}
               </div>
-              {/* Elapsed timer */}
               {(isRunning || elapsedTime > 0) && (
                 <span className="text-sm font-mono text-muted-foreground tabular-nums">
                   {formatElapsed(elapsedTime)}
@@ -399,14 +404,15 @@ export default function AnalyzePage() {
             <AgentStream steps={steps} isRunning={isRunning} />
           </CardContent>
         </Card>
-      )}
+      </div>
 
-      {/* Analysis Report */}
-      {analysis && (
-        <div className="animate-slide-up">
-          <AnalysisReport analysis={analysis} />
-        </div>
-      )}
+      {/* Analysis Report — always mounted, hidden when no data */}
+      <div
+        key="analysis-report"
+        className={analysis ? "opacity-100" : "hidden"}
+      >
+        {analysis && <AnalysisReport analysis={analysis} />}
+      </div>
     </div>
   );
 }
