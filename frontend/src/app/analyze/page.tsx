@@ -1,12 +1,25 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Upload, Link, Loader2, Sparkles, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AgentStream } from "@/components/agent/AgentStream";
 import { AnalysisReport } from "@/components/analysis/AnalysisReport";
 import { analysisApi } from "@/lib/api";
 import type { AgentStep, JobAnalysis } from "@/types";
+
+const AGENT_STEPS = [
+  "parse_job",
+  "parse_cv",
+  "analyze_match",
+  "identify_gaps",
+  "generate_cover_letter",
+  "reflect",
+  "compile_report",
+];
+
+// Approximate durations per step for simulated progression (ms)
+const STEP_DURATIONS = [4000, 4000, 8000, 7000, 10000, 6000, 3000];
 
 export default function AnalyzePage() {
   const [jobDescription, setJobDescription] = useState("");
@@ -17,7 +30,65 @@ export default function AnalyzePage() {
   const [analysis, setAnalysis] = useState<JobAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const simulationRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const clearSimulation = useCallback(() => {
+    simulationRef.current.forEach(clearTimeout);
+    simulationRef.current = [];
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  // Simulate step progression while waiting for the single API response
+  const startSimulation = useCallback(() => {
+    clearSimulation();
+    setElapsedTime(0);
+
+    // Elapsed time counter
+    timerRef.current = setInterval(() => {
+      setElapsedTime((prev) => prev + 1);
+    }, 1000);
+
+    let cumulativeDelay = 0;
+
+    AGENT_STEPS.forEach((stepName, index) => {
+      // Set step to "running"
+      const runTimer = setTimeout(() => {
+        setSteps((prev) => {
+          const updated = prev.map((s) =>
+            s.step === AGENT_STEPS[index - 1] && s.status === "running"
+              ? { ...s, status: "completed" as const, duration_ms: STEP_DURATIONS[index - 1] }
+              : s
+          );
+          return [...updated, { step: stepName, status: "running" as const, message: `Processing ${stepName}...` }];
+        });
+      }, cumulativeDelay);
+      simulationRef.current.push(runTimer);
+
+      cumulativeDelay += STEP_DURATIONS[index];
+    });
+  }, [clearSimulation]);
+
+  // When analysis completes, mark all steps as completed
+  const completeAllSteps = useCallback(() => {
+    clearSimulation();
+    setSteps(
+      AGENT_STEPS.map((stepName, i) => ({
+        step: stepName,
+        status: "completed" as const,
+        duration_ms: STEP_DURATIONS[i],
+      }))
+    );
+  }, [clearSimulation]);
+
+  useEffect(() => {
+    return () => clearSimulation();
+  }, [clearSimulation]);
 
   const handleAnalyze = async () => {
     if (!jobDescription || !cvFile) return;
@@ -26,6 +97,7 @@ export default function AnalyzePage() {
     setError(null);
     setSteps([]);
     setAnalysis(null);
+    startSimulation();
 
     const formData = new FormData();
     formData.append("job_description", jobDescription);
@@ -34,10 +106,16 @@ export default function AnalyzePage() {
 
     try {
       const response = await analysisApi.analyze(formData);
+      completeAllSteps();
       setAnalysis(response.data);
     } catch (err: unknown) {
+      clearSimulation();
       const message = err instanceof Error ? err.message : "Analysis failed";
       setError(message);
+      // Mark current running step as failed
+      setSteps((prev) =>
+        prev.map((s) => (s.status === "running" ? { ...s, status: "failed" as const } : s))
+      );
     } finally {
       setIsRunning(false);
     }
@@ -66,6 +144,12 @@ export default function AnalyzePage() {
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const formatElapsed = (seconds: number): string => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return m > 0 ? `${m}m ${s}s` : `${s}s`;
   };
 
   const canRun = jobDescription.trim().length > 0 && cvFile !== null && !isRunning;
@@ -267,7 +351,7 @@ export default function AnalyzePage() {
         </div>
       </div>
 
-      {/* Agent Progress Section */}
+      {/* Agent Pipeline Section */}
       {(isRunning || steps.length > 0) && (
         <Card
           className={`
@@ -279,21 +363,34 @@ export default function AnalyzePage() {
           `}
         >
           <CardHeader className="pb-4">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <div className={`
-                flex h-8 w-8 items-center justify-center rounded-lg
-                ${isRunning
-                  ? "bg-gradient-to-br from-indigo-500/15 to-purple-500/15 animate-pulse-gentle"
-                  : "bg-muted/60"
-                }
-              `}>
-                <Sparkles className={`h-4 w-4 ${isRunning ? "text-indigo-500" : "text-muted-foreground"}`} />
+            <CardTitle className="text-lg flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className={`
+                  flex h-8 w-8 items-center justify-center rounded-lg
+                  ${isRunning
+                    ? "bg-gradient-to-br from-indigo-500/15 to-purple-500/15 animate-pulse-gentle"
+                    : "bg-green-100"
+                  }
+                `}>
+                  <Sparkles className={`h-4 w-4 ${isRunning ? "text-indigo-500" : "text-green-600"}`} />
+                </div>
+                Agent Pipeline
+                {isRunning && (
+                  <span className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-xs font-medium text-indigo-500">
+                    <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                    Running
+                  </span>
+                )}
+                {!isRunning && steps.length > 0 && steps.every((s) => s.status === "completed") && (
+                  <span className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-green-500/10 px-2.5 py-0.5 text-xs font-medium text-green-600">
+                    Complete
+                  </span>
+                )}
               </div>
-              Agent Progress
-              {isRunning && (
-                <span className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-xs font-medium text-indigo-500">
-                  <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                  Running
+              {/* Elapsed timer */}
+              {(isRunning || elapsedTime > 0) && (
+                <span className="text-sm font-mono text-muted-foreground tabular-nums">
+                  {formatElapsed(elapsedTime)}
                 </span>
               )}
             </CardTitle>

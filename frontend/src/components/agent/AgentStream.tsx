@@ -1,7 +1,6 @@
 "use client";
 
 import { StepCard } from "./StepCard";
-import { AgentProgress } from "./AgentProgress";
 import type { AgentStep } from "@/types";
 
 const AGENT_STEPS = [
@@ -20,12 +19,41 @@ interface AgentStreamProps {
 }
 
 export function AgentStream({ steps, isRunning }: AgentStreamProps) {
-  const completedSteps = steps.filter((s) => s.status === "completed").length;
-  const progress = (completedSteps / AGENT_STEPS.length) * 100;
+  const completedCount = steps.filter((s) => s.status === "completed").length;
+  const totalSteps = AGENT_STEPS.length;
 
   return (
-    <div className="space-y-6">
-      <AgentProgress progress={progress} isRunning={isRunning} />
+    <div className="space-y-4">
+      {/* Step counter */}
+      <div className="flex items-center justify-between px-1">
+        <p className="text-sm text-muted-foreground">
+          {isRunning
+            ? `Processing step ${Math.min(completedCount + 1, totalSteps)} of ${totalSteps}...`
+            : completedCount === totalSteps
+              ? `All ${totalSteps} steps completed`
+              : `${completedCount} of ${totalSteps} steps`}
+        </p>
+        <div className="flex gap-1">
+          {AGENT_STEPS.map((name) => {
+            const step = steps.find((s) => s.step === name);
+            const status = step?.status || "pending";
+            return (
+              <div
+                key={name}
+                className={`h-1.5 w-6 rounded-full transition-all duration-500 ${
+                  status === "completed"
+                    ? "bg-green-500"
+                    : status === "running"
+                      ? "bg-indigo-500 animate-pulse"
+                      : status === "failed"
+                        ? "bg-red-500"
+                        : "bg-gray-200"
+                }`}
+              />
+            );
+          })}
+        </div>
+      </div>
 
       {/* Vertical timeline */}
       <div className="relative pl-4">
@@ -46,7 +74,7 @@ export function AgentStream({ steps, isRunning }: AgentStreamProps) {
                       status === "completed"
                         ? "bg-green-500"
                         : status === "running"
-                          ? "bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.6)]"
+                          ? "bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]"
                           : status === "failed"
                             ? "bg-red-500"
                             : "bg-gray-300"
