@@ -8,7 +8,7 @@ This is NOT a simple "prompt-in, text-out" wrapper. It is a **multi-step agent**
 
 **Live Architecture:** Next.js frontend → FastAPI backend → LangGraph Agent → AWS Bedrock (Claude Haiku 4.5 + Claude Sonnet 4)
 
-**Current Status (March 2026):** Core pipeline fully operational. Analysis flow works end-to-end: CV upload + job description → 7-node agent pipeline → ATS score, gap analysis, cover letter → auto-creates kanban application. Dashboard shows live stats. CI/CD passes.
+**Current Status (March 2026):** Core pipeline fully operational and verified. Analysis flow works end-to-end: CV upload + job description → 7-node agent pipeline (~50-70s) → ATS score, gap analysis, cover letter → auto-creates kanban application. Dashboard shows live stats. CI/CD passes. Bedrock connection stable (Haiku + Sonnet both responding). Next: SSE streaming, settings page, PDF export, UX polish.
 
 ---
 
@@ -605,14 +605,17 @@ docker compose exec backend pytest -v  # Tests in container
 - [x] CI/CD pipeline (GitHub Actions: lint, test, build, docker)
 - [ ] README + demo screenshots
 
-### Phase 5: Future Enhancements (Backlog)
-- [ ] Settings page with provider selection UI
+### Phase 5: Streaming, Settings & Polish (In Progress)
+- [ ] Real-time SSE streaming — agent steps stream live to frontend during execution
+- [ ] Settings page — LLM provider selection, API key configuration UI
+- [ ] Export analysis reports as PDF
+- [ ] Frontend UX improvements — responsive polish, loading states, accessibility
+
+### Phase 6: Future Enhancements (Backlog)
 - [ ] Additional LLM providers (Anthropic direct, OpenAI, Gemini, Ollama)
 - [ ] Batch analysis (multiple job postings at once)
 - [ ] CV version management
-- [ ] Export reports as PDF
 - [ ] Email notifications for application deadlines
-- [ ] Real-time SSE streaming to frontend during agent execution (currently polls result)
 
 ---
 
@@ -692,5 +695,13 @@ docker compose exec backend pytest -v  # Tests in container
 - Set Axios timeout to 5 minutes (analysis pipeline can take 1-2 min with multiple LLM calls)
 - Improved error messages: shows backend detail instead of generic "Network Error"
 
+### March 2026 — Pipeline Verification
+
+**Verified:**
+- Bedrock connection stable — both Haiku and Sonnet respond correctly
+- Full agent pipeline works end-to-end (~50-70s for complete analysis)
+- HTTP API endpoint returns 200 with full analysis results
+- CORS preflight passes, frontend↔backend connectivity confirmed
+
 **Known Issue:**
-- Analysis currently returns as a single API response (no streaming). SSE endpoint exists (`/agent/stream/{run_id}`) but is a TODO stub. Frontend simulates step progression while waiting.
+- Analysis currently returns as a single API response (no streaming). SSE endpoint exists (`/agent/stream/{run_id}`) but is a TODO stub. Frontend simulates step progression while waiting. (Fixing in Phase 5)
