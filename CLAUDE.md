@@ -605,11 +605,11 @@ docker compose exec backend pytest -v  # Tests in container
 - [x] CI/CD pipeline (GitHub Actions: lint, test, build, docker)
 - [ ] README + demo screenshots
 
-### Phase 5: Streaming, Settings & Polish (In Progress)
-- [ ] Real-time SSE streaming — agent steps stream live to frontend during execution
-- [ ] Settings page — LLM provider selection, API key configuration UI
-- [ ] Export analysis reports as PDF
-- [ ] Frontend UX improvements — responsive polish, loading states, accessibility
+### Phase 5: Streaming, Settings & Polish ✅
+- [x] Real-time SSE streaming — POST /analyze/stream streams pipeline steps live via SSE
+- [x] Settings page — dynamic config from API, connection test, provider/model info
+- [x] Export analysis reports as PDF — GET /analyze/{id}/pdf with fpdf2
+- [x] Frontend UX — mobile responsive sidebar, consistent headers, accessibility
 
 ### Phase 6: Future Enhancements (Backlog)
 - [ ] Additional LLM providers (Anthropic direct, OpenAI, Gemini, Ollama)
@@ -703,5 +703,25 @@ docker compose exec backend pytest -v  # Tests in container
 - HTTP API endpoint returns 200 with full analysis results
 - CORS preflight passes, frontend↔backend connectivity confirmed
 
-**Known Issue:**
-- Analysis currently returns as a single API response (no streaming). SSE endpoint exists (`/agent/stream/{run_id}`) but is a TODO stub. Frontend simulates step progression while waiting. (Fixing in Phase 5)
+### March 2026 — Phase 5 Complete
+
+**SSE Streaming:**
+- `POST /analyze/stream` — streams real-time pipeline step events via SSE
+- Frontend consumes SSE via `fetch()` + `ReadableStream` (not EventSource, since POST is needed)
+- Each node completion emits step name, duration, and output summary
+- Final `complete` event includes full analysis JSON
+
+**Settings Page:**
+- `GET /settings` — returns current provider config (no secrets exposed)
+- `POST /settings/test-connection` — tests both fast/power model connectivity with latency
+- Frontend shows provider, region, model routing, expandable model IDs
+
+**PDF Export:**
+- `GET /analyze/{id}/pdf` — generates downloadable PDF report via fpdf2
+- Includes: score, assessment, strengths/weaknesses, gaps, ATS tips, skills overview
+- Download button on AnalysisReport component
+
+**Mobile Responsive:**
+- Sidebar collapses to hamburger on mobile (`lg:` breakpoint)
+- Slide-out drawer with backdrop overlay, Escape key support
+- Content area has top padding on mobile for hamburger button
