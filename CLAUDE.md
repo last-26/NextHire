@@ -8,7 +8,7 @@ This is NOT a simple "prompt-in, text-out" wrapper. It is a **multi-step agent**
 
 **Live Architecture:** Next.js frontend → FastAPI backend → LangGraph Agent → AWS Bedrock (Claude Haiku 4.5 + Claude Sonnet 4)
 
-**Current Status (March 2026):** Core pipeline fully operational and verified. Analysis flow works end-to-end: CV upload + job description → 7-node agent pipeline (~50-70s) → ATS score, gap analysis, cover letter → auto-creates kanban application. Dashboard shows live stats. CI/CD passes. Bedrock connection stable (Haiku + Sonnet both responding). Next: SSE streaming, settings page, PDF export, UX polish.
+**Current Status (March 2026):** Project feature-complete. Full pipeline operational: CV upload + job description → 7-node agent pipeline (~50-70s) → hybrid ATS score (algorithmic + LLM judgment), gap analysis, cover letter → auto-creates kanban application. SSE streaming, settings page with DB management, PDF export, mobile responsive UI all implemented. Hybrid scoring system combines algorithmic metrics (semantic similarity + keyword matching) with LLM holistic evaluation for more accurate and nuanced scores. CI/CD passes. Bedrock connection stable (Haiku + Sonnet).
 
 ---
 
@@ -616,6 +616,13 @@ docker compose exec backend pytest -v  # Tests in container
 - [x] Add DB reset/clear functionality to Settings page (db-stats + danger zone)
 - [x] Settings page cache fix (Next.js dev server caching issue)
 
+### Phase 5c: Hybrid ATS Scoring ✅
+- [x] LLM-based scoring — model evaluates transferable skills, experience depth, education fit, cultural alignment
+- [x] Hybrid formula: algorithmic (50%) + LLM judgment (50%) with fallback
+- [x] Frontend: three-part score breakdown (Semantic / Keyword / AI Judge)
+- [x] Score reasoning display — LLM explains why it gave the score
+- [x] Transferable skills identification and display
+
 ### Phase 6: Future Enhancements (Backlog)
 - [ ] Additional LLM providers (Anthropic direct, OpenAI, Gemini, Ollama)
 - [ ] Batch analysis (multiple job postings at once)
@@ -744,3 +751,18 @@ docker compose exec backend pytest -v  # Tests in container
 - `GET /settings/db-stats` — returns row counts for all 4 tables
 - `DELETE /settings/reset-db` — clears all data (FK-safe delete order)
 - Frontend: Danger Zone card with stats grid, two-step confirmation dialog
+
+### March 2026 — Phase 5c: Hybrid ATS Scoring
+
+**Scoring Architecture:**
+- Previous: pure algorithmic (`semantic * 0.35 + keyword * 0.65`)
+- New: hybrid (`algorithmic * 0.50 + llm_score * 0.50`)
+- LLM (Sonnet) evaluates: transferable skills, experience depth, education fit, industry alignment, soft skills, overall competitiveness
+- Prompt explicitly instructs LLM to NOT echo algorithmic metrics and use its own holistic judgment
+- Fallback to pure algorithmic if LLM returns invalid score
+
+**Frontend Enhancements:**
+- Score breakdown shows three metrics: Semantic / Keyword / AI Judge
+- "AI Score Reasoning" section explains LLM's scoring rationale
+- "Transferable Skills" badges show related but non-exact skill matches
+- Updated TypeScript types for new MatchResult fields
