@@ -27,6 +27,9 @@ beautifulsoup4==4.12.3
 # NLP
 scikit-learn==1.6.0
 
+# PDF generation
+fpdf2==2.8.2
+
 # Utilities
 pydantic==2.10.4
 pydantic-settings==2.7.1

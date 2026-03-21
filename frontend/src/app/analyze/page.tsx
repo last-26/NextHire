@@ -1,12 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { AxiosError } from "axios";
 import { Upload, Link, Loader2, Sparkles, FileText } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AgentStream } from "@/components/agent/AgentStream";
 import { AnalysisReport } from "@/components/analysis/AnalysisReport";
-import { analysisApi } from "@/lib/api";
+import { streamAnalysis } from "@/lib/sse";
 import type { AgentStep, JobAnalysis } from "@/types";
 
 const AGENT_STEPS = [
@@ -19,9 +18,6 @@ const AGENT_STEPS = [
   "compile_report",
 ];
 
-// Approximate durations per step for simulated progression (ms)
-const STEP_DURATIONS = [4000, 4000, 8000, 7000, 10000, 6000, 3000];
-
 export default function AnalyzePage() {
   const [jobDescription, setJobDescription] = useState("");
   const [jobUrl, setJobUrl] = useState("");
@@ -33,100 +29,90 @@ export default function AnalyzePage() {
   const [isDragOver, setIsDragOver] = useState(false);
   const [elapsedTime, setElapsedTime] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const simulationRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const clearSimulation = useCallback(() => {
-    simulationRef.current.forEach(clearTimeout);
-    simulationRef.current = [];
+  const stopTimer = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
   }, []);
 
-  // Simulate step progression while waiting for the single API response
-  const startSimulation = useCallback(() => {
-    clearSimulation();
-    setElapsedTime(0);
-
-    // Elapsed time counter
-    timerRef.current = setInterval(() => {
-      setElapsedTime((prev) => prev + 1);
-    }, 1000);
-
-    let cumulativeDelay = 0;
-
-    AGENT_STEPS.forEach((stepName, index) => {
-      // Set step to "running"
-      const runTimer = setTimeout(() => {
-        setSteps((prev) => {
-          const updated = prev.map((s) =>
-            s.step === AGENT_STEPS[index - 1] && s.status === "running"
-              ? { ...s, status: "completed" as const, duration_ms: STEP_DURATIONS[index - 1] }
-              : s
-          );
-          return [...updated, { step: stepName, status: "running" as const, message: `Processing ${stepName}...` }];
-        });
-      }, cumulativeDelay);
-      simulationRef.current.push(runTimer);
-
-      cumulativeDelay += STEP_DURATIONS[index];
-    });
-  }, [clearSimulation]);
-
-  // When analysis completes, mark all steps as completed
-  const completeAllSteps = useCallback(() => {
-    clearSimulation();
-    setSteps(
-      AGENT_STEPS.map((stepName, i) => ({
-        step: stepName,
-        status: "completed" as const,
-        duration_ms: STEP_DURATIONS[i],
-      }))
-    );
-  }, [clearSimulation]);
-
   useEffect(() => {
-    return () => clearSimulation();
-  }, [clearSimulation]);
+    return () => {
+      stopTimer();
+      abortRef.current?.abort();
+    };
+  }, [stopTimer]);
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = () => {
     if (!jobDescription || !cvFile) return;
 
     setIsRunning(true);
     setError(null);
     setSteps([]);
     setAnalysis(null);
-    startSimulation();
+    setElapsedTime(0);
+
+    // Start elapsed timer
+    timerRef.current = setInterval(() => {
+      setElapsedTime((prev) => prev + 1);
+    }, 1000);
+
+    // Mark the first step as running immediately
+    setSteps([{ step: AGENT_STEPS[0], status: "running", message: "Starting pipeline..." }]);
 
     const formData = new FormData();
     formData.append("job_description", jobDescription);
     formData.append("cv_file", cvFile);
     if (jobUrl) formData.append("job_url", jobUrl);
 
-    try {
-      const response = await analysisApi.analyze(formData);
-      completeAllSteps();
-      setAnalysis(response.data);
-    } catch (err: unknown) {
-      clearSimulation();
-      let message = "Analysis failed";
-      if (err instanceof AxiosError) {
-        message = err.response?.data?.detail || err.message;
-        if (err.code === "ECONNABORTED") message = "Request timed out — the analysis took too long. Please try again.";
-        if (err.code === "ERR_NETWORK") message = "Network error — could not reach the backend. Check if the server is running.";
-      } else if (err instanceof Error) {
-        message = err.message;
-      }
-      setError(message);
-      // Mark current running step as failed
-      setSteps((prev) =>
-        prev.map((s) => (s.status === "running" ? { ...s, status: "failed" as const } : s))
-      );
-    } finally {
-      setIsRunning(false);
-    }
+    abortRef.current = streamAnalysis(formData, {
+      onStep: (event) => {
+        setSteps((prev) => {
+          // Mark the completed step
+          const updated = prev.map((s) =>
+            s.step === event.step
+              ? { ...s, status: "completed" as const, duration_ms: event.duration_ms, output_summary: event.output_summary }
+              : s
+          );
+
+          // Find the next step and mark it as running
+          const completedIdx = AGENT_STEPS.indexOf(event.step);
+          const nextStep = AGENT_STEPS[completedIdx + 1];
+          if (nextStep && !updated.find((s) => s.step === nextStep)) {
+            updated.push({ step: nextStep, status: "running", message: `Processing ${nextStep}...` });
+          }
+
+          return updated;
+        });
+      },
+
+      onComplete: (data) => {
+        stopTimer();
+        // Ensure all steps show as completed
+        setSteps((prev) =>
+          AGENT_STEPS.map((stepName) => {
+            const existing = prev.find((s) => s.step === stepName);
+            return existing
+              ? { ...existing, status: "completed" as const }
+              : { step: stepName, status: "completed" as const };
+          })
+        );
+        setAnalysis(data.analysis);
+        setIsRunning(false);
+      },
+
+      onError: (errorMsg) => {
+        stopTimer();
+        setError(errorMsg);
+        setSteps((prev) =>
+          prev.map((s) => (s.status === "running" ? { ...s, status: "failed" as const } : s))
+        );
+        setIsRunning(false);
+      },
+    });
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -393,7 +379,7 @@ export default function AnalyzePage() {
                 {isRunning ? (
                   <span className="ml-1 inline-flex items-center gap-1.5 rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-xs font-medium text-indigo-500">
                     <span className="h-1.5 w-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                    Running
+                    Live
                   </span>
                 ) : steps.length > 0 && steps.every((s) => s.status === "completed") ? (
                   <span className="ml-1 inline-flex items-center gap-1.5 rounded-full bg-green-500/10 px-2.5 py-0.5 text-xs font-medium text-green-600">

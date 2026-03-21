@@ -29,6 +29,8 @@ export const analysisApi = {
     api.post("/cv-review", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     }),
+  exportPdf: (analysisId: string) =>
+    api.get(`/analyze/${analysisId}/pdf`, { responseType: "blob" }),
 };
 
 // Cover Letters
@@ -47,4 +49,10 @@ export const agentApi = {
 export const dashboardApi = {
   stats: () => api.get("/dashboard/stats"),
   recentAnalyses: (limit = 10) => api.get(`/dashboard/recent-analyses?limit=${limit}`),
+};
+
+// Settings
+export const settingsApi = {
+  get: () => api.get("/settings"),
+  testConnection: () => api.post("/settings/test-connection"),
 };

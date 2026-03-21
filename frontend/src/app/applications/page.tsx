@@ -46,8 +46,8 @@ export default function ApplicationsPage() {
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 shadow-lg shadow-indigo-200/50">
               <LayoutGrid className="h-5 w-5 text-white" />
             </div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-600 bg-clip-text text-transparent">
-              Applications
+            <h1 className="text-3xl font-bold tracking-tight">
+              <span className="gradient-text">Applications</span>
             </h1>
           </div>
           <p className="text-muted-foreground ml-[3.25rem]">

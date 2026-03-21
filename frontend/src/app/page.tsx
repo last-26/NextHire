@@ -128,7 +128,9 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            <span className="gradient-text">Dashboard</span>
+          </h1>
           <p className="text-muted-foreground mt-1.5 text-[0.95rem]">
             Track your job applications and analysis insights at a glance.
           </p>

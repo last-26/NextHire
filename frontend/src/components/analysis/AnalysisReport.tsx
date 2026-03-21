@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -8,10 +9,13 @@ import {
   AlertTriangle,
   Lightbulb,
   Target,
+  Download,
+  Loader2,
 } from "lucide-react";
 import { ScoreCard } from "./ScoreCard";
 import { SkillMatch } from "./SkillMatch";
 import { GapAnalysis } from "./GapAnalysis";
+import { analysisApi } from "@/lib/api";
 import type { JobAnalysis } from "@/types";
 
 interface AnalysisReportProps {
@@ -21,9 +25,53 @@ interface AnalysisReportProps {
 export function AnalysisReport({ analysis }: AnalysisReportProps) {
   const matchResult = analysis.match_result;
   const gapAnalysis = analysis.gap_analysis;
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownloadPdf = async () => {
+    setDownloading(true);
+    try {
+      const response = await analysisApi.exportPdf(analysis.id);
+      const blob = new Blob([response.data], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `NextHire_${analysis.company_name || "Report"}_${analysis.job_title || "Analysis"}.pdf`.replace(/\s+/g, "_");
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch {
+      // Silently fail — user can retry
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
+      {/* Report Header with Download */}
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-bold tracking-tight">
+          <span className="gradient-text">Analysis Report</span>
+        </h2>
+        <button
+          onClick={handleDownloadPdf}
+          disabled={downloading}
+          className="flex items-center gap-2 rounded-lg border border-indigo-200 bg-white px-4 py-2
+            text-sm font-medium text-indigo-600
+            transition-all duration-200
+            hover:bg-indigo-50 hover:border-indigo-300
+            disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {downloading ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Download className="h-4 w-4" />
+          )}
+          Export PDF
+        </button>
+      </div>
+
       {/* Top row: Score + Skill Match */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* ATS Compatibility Score */}

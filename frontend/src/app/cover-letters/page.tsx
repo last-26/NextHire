@@ -37,8 +37,8 @@ export default function CoverLettersPage() {
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 shadow-lg shadow-violet-200/50">
             <PenLine className="h-5 w-5 text-white" />
           </div>
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 via-gray-800 to-gray-600 bg-clip-text text-transparent">
-            Cover Letters
+          <h1 className="text-3xl font-bold tracking-tight">
+            <span className="gradient-text">Cover Letters</span>
           </h1>
         </div>
         <p className="text-muted-foreground ml-[3.25rem]">
