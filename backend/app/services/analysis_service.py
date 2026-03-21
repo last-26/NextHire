@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agent.graph import agent_graph
 from app.agent.tools.cv_parser import parse_cv as parse_cv_file
 from app.models.agent_run import AgentRun
+from app.models.application import Application
 from app.models.cover_letter import CoverLetter
 from app.models.job_analysis import JobAnalysis
 
@@ -69,13 +70,28 @@ class AnalysisService:
 
             # Create cover letter record if generated
             cover_letter_text = result.get("cover_letter")
+            cover_letter_record = None
             if cover_letter_text:
-                cover_letter = CoverLetter(
+                cover_letter_record = CoverLetter(
                     analysis_id=analysis.id,
                     content=cover_letter_text,
                     tone=result.get("cover_letter_tone", "professional"),
                 )
-                self.session.add(cover_letter)
+                self.session.add(cover_letter_record)
+                await self.session.flush()
+
+            # Auto-create application for kanban tracking
+            application = Application(
+                company_name=analysis.company_name or "Unknown Company",
+                position_title=analysis.job_title or "Untitled Position",
+                job_url=job_url,
+                status="wishlist",
+                priority="medium",
+                match_score=analysis.overall_score,
+                analysis_id=analysis.id,
+                cover_letter_id=cover_letter_record.id if cover_letter_record else None,
+            )
+            self.session.add(application)
 
             # Update agent run as completed
             agent_run.status = "completed"

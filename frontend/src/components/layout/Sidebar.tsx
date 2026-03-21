@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Search, Kanban, Mail, Settings } from "lucide-react";
+import { LayoutDashboard, Search, Kanban, Mail, Settings, Bot } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navigation = [
@@ -17,39 +17,59 @@ export function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <div className="flex h-full w-64 flex-col border-r bg-card">
-      <div className="flex h-16 items-center gap-2 border-b px-6">
-        <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-          <span className="text-primary-foreground font-bold text-sm">NH</span>
+    <div className="flex h-full w-64 flex-col border-r border-border/60 bg-card/80 backdrop-blur-sm">
+      {/* Header / Logo */}
+      <div className="flex h-16 items-center gap-3 border-b border-border/60 px-6">
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 shadow-md shadow-indigo-500/20">
+          <span className="text-sm font-bold text-white">NH</span>
         </div>
-        <span className="text-xl font-bold">NextHire</span>
+        <span className="text-xl font-bold gradient-text">NextHire</span>
       </div>
 
-      <nav className="flex-1 space-y-1 p-3">
+      {/* Navigation */}
+      <nav className="flex-1 space-y-1 px-3 py-4">
         {navigation.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive =
+            item.href === "/"
+              ? pathname === "/"
+              : pathname.startsWith(item.href);
+
           return (
             <Link
               key={item.name}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-200",
                 isActive
-                  ? "bg-primary/10 text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                  ? "bg-gradient-to-r from-primary/10 to-accent/5 text-primary"
+                  : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
               )}
             >
-              <item.icon className="h-5 w-5" />
+              {/* Active indicator bar */}
+              {isActive && (
+                <span className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-gradient-to-b from-indigo-500 to-purple-600" />
+              )}
+
+              <item.icon
+                className={cn(
+                  "h-5 w-5 transition-colors duration-200",
+                  isActive
+                    ? "text-primary"
+                    : "text-muted-foreground group-hover:text-foreground"
+                )}
+              />
               {item.name}
             </Link>
           );
         })}
       </nav>
 
-      <div className="border-t p-4">
-        <p className="text-xs text-muted-foreground">
-          NextHire v0.1.0
-        </p>
+      {/* Bottom section */}
+      <div className="border-t border-border/60 p-4">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Bot className="h-3.5 w-3.5" />
+          <span>Powered by AI</span>
+        </div>
       </div>
     </div>
   );

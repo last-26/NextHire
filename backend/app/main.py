@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import agent, analyze, applications, cover_letter, cv_review, health
+from app.api.routes import agent, analyze, applications, cover_letter, cv_review, dashboard, health
 from app.config import settings
 
 
@@ -38,3 +38,4 @@ app.include_router(applications.router, prefix="/api/v1", tags=["applications"])
 app.include_router(cover_letter.router, prefix="/api/v1", tags=["cover-letter"])
 app.include_router(cv_review.router, prefix="/api/v1", tags=["cv-review"])
 app.include_router(agent.router, prefix="/api/v1", tags=["agent"])
+app.include_router(dashboard.router, prefix="/api/v1", tags=["dashboard"])

@@ -41,3 +41,9 @@ export const coverLettersApi = {
 export const agentApi = {
   getRun: (runId: string) => api.get(`/agent/runs/${runId}`),
 };
+
+// Dashboard
+export const dashboardApi = {
+  stats: () => api.get("/dashboard/stats"),
+  recentAnalyses: (limit = 10) => api.get(`/dashboard/recent-analyses?limit=${limit}`),
+};

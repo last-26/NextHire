@@ -6,7 +6,9 @@ NextHire is an **agentic AI system** that helps job seekers analyze job postings
 
 This is NOT a simple "prompt-in, text-out" wrapper. It is a **multi-step agent** that plans, executes tools, evaluates its own output, and iterates. The agent uses **multi-model routing** (cheap model for simple tasks, powerful model for reasoning) and streams its execution steps to the frontend in real-time.
 
-**Live Architecture:** Next.js frontend → FastAPI backend → LangGraph Agent → AWS Bedrock (Claude Haiku 4.5 + Claude Sonnet)
+**Live Architecture:** Next.js frontend → FastAPI backend → LangGraph Agent → AWS Bedrock (Claude Haiku 4.5 + Claude Sonnet 4)
+
+**Current Status (March 2026):** Core pipeline fully operational. Analysis flow works end-to-end: CV upload + job description → 7-node agent pipeline → ATS score, gap analysis, cover letter → auto-creates kanban application. Dashboard shows live stats. CI/CD passes.
 
 ---
 
@@ -200,6 +202,7 @@ NextHire/
 │   │   │       ├── cover_letter.py    # POST /api/v1/cover-letter
 │   │   │       ├── cv_review.py       # POST /api/v1/cv-review
 │   │   │       ├── agent.py           # GET /api/v1/agent/stream/{run_id} (SSE)
+│   │   │       ├── dashboard.py       # GET /api/v1/dashboard/stats, /recent-analyses
 │   │   │       └── health.py          # GET /api/v1/health
 │   │   │
 │   │   ├── models/                    # SQLAlchemy ORM models
@@ -272,7 +275,7 @@ NextHire/
 ├── frontend/
 │   ├── Dockerfile
 │   ├── package.json
-│   ├── next.config.ts
+│   ├── next.config.mjs
 │   ├── tailwind.config.ts
 │   ├── tsconfig.json
 │   ├── postcss.config.mjs
@@ -568,36 +571,36 @@ docker compose exec backend pytest -v  # Tests in container
 
 ## Implementation Order (Phases)
 
-### Phase 1: Foundation (Day 1-2)
-- [ ] Project scaffolding (monorepo structure)
-- [ ] Docker Compose (FastAPI + Next.js + PostgreSQL)
-- [ ] Database models + Alembic migrations
-- [ ] Basic CRUD API for applications (kanban data)
-- [ ] LLM abstraction layer + Bedrock provider
-- [ ] Health check endpoints
-- [ ] Frontend: Layout, sidebar, routing
+### Phase 1: Foundation ✅
+- [x] Project scaffolding (monorepo structure)
+- [x] Docker Compose (FastAPI + Next.js + PostgreSQL)
+- [x] Database models + Alembic migrations
+- [x] Basic CRUD API for applications (kanban data)
+- [x] LLM abstraction layer + Bedrock provider
+- [x] Health check endpoints
+- [x] Frontend: Layout, sidebar, routing
 
-### Phase 2: Agent Core (Day 3-5)
-- [ ] LangGraph agent graph definition
-- [ ] Agent state schema
-- [ ] Tools: cv_parser, job_scraper, keyword_extractor, semantic_scorer
-- [ ] Nodes: parse_job, parse_cv, analyze_match
-- [ ] SSE streaming endpoint
-- [ ] Frontend: Agent stream viewer component
+### Phase 2: Agent Core ✅
+- [x] LangGraph agent graph definition
+- [x] Agent state schema
+- [x] Tools: cv_parser, job_scraper, keyword_extractor, semantic_scorer
+- [x] Nodes: parse_job, parse_cv, analyze_match
+- [x] SSE streaming endpoint
+- [x] Frontend: Agent stream viewer component
 
-### Phase 3: Full Agent Pipeline (Day 6-8)
-- [ ] Nodes: identify_gaps, generate_cover_letter, reflect, compile_report
-- [ ] Reflection loop with quality gate
-- [ ] Multi-model routing (Haiku for parse, Sonnet for analysis)
-- [ ] Analysis results stored in DB
-- [ ] Frontend: Analysis report page (score card, skill match, gaps)
+### Phase 3: Full Agent Pipeline ✅
+- [x] Nodes: identify_gaps, generate_cover_letter, reflect, compile_report
+- [x] Reflection loop with quality gate
+- [x] Multi-model routing (Haiku for parse, Sonnet for analysis)
+- [x] Analysis results stored in DB
+- [x] Frontend: Analysis report page (score card, skill match, gaps)
 
-### Phase 4: Application Tracking + Polish (Day 9-10)
-- [ ] Kanban board frontend (drag-and-drop)
-- [ ] Cover letter editor
-- [ ] Link analysis → application → cover letter
-- [ ] Dashboard with stats
-- [ ] CI/CD pipeline
+### Phase 4: Application Tracking + Polish ✅
+- [x] Kanban board frontend (drag-and-drop)
+- [x] Cover letter editor
+- [x] Link analysis → application → cover letter (auto-creates Application on analysis completion)
+- [x] Dashboard with live stats (dynamic API-driven)
+- [x] CI/CD pipeline (GitHub Actions: lint, test, build, docker)
 - [ ] README + demo screenshots
 
 ### Phase 5: Future Enhancements (Backlog)
@@ -607,6 +610,7 @@ docker compose exec backend pytest -v  # Tests in container
 - [ ] CV version management
 - [ ] Export reports as PDF
 - [ ] Email notifications for application deadlines
+- [ ] Real-time SSE streaming to frontend during agent execution (currently polls result)
 
 ---
 
@@ -643,3 +647,35 @@ docker compose exec backend pytest -v  # Tests in container
 6. **Docker Compose** is the source of truth for local development. Both frontend and backend should work with `docker compose up`.
 
 7. **PostgreSQL JSONB** — use for analysis results, parsed job/CV data. Define Pydantic schemas for validation before storing.
+
+8. **AWS Bedrock inference profiles** — New Claude models on Bedrock require inference profile IDs (prefixed with region, e.g. `eu.anthropic.claude-haiku-4-5-20251001-v1:0`). On-demand model IDs will return `ValidationException`.
+
+9. **Analysis → Application auto-creation** — `analysis_service.py` automatically creates an `Application` record (status `wishlist`) after each successful analysis, linking it to the analysis and cover letter. No manual application creation needed.
+
+---
+
+## Key Changes Log
+
+### March 2026 — Full Pipeline Wiring + Frontend Redesign
+
+**Backend:**
+- Wired `analysis_service.py` to actually invoke `agent_graph.ainvoke()` (was previously a TODO stub)
+- Fixed `bedrock.py` system prompt handling — `_get_system_prompt()` existed but was never called in `invoke()`/`stream()`
+- Added `dashboard.py` route with `/dashboard/stats` and `/dashboard/recent-analyses` endpoints
+- Auto-creation of `Application` records after each analysis (links analysis + cover letter to kanban)
+- Generated and applied initial Alembic migration for all 4 tables
+- Fixed 18+ ruff lint issues across the codebase
+- Corrected model IDs to use Bedrock inference profile format
+
+**Frontend:**
+- Replaced `next.config.ts` with `next.config.mjs` (TS config not supported in Node 20 Alpine + Next.js 14.2)
+- Complete visual redesign: indigo/purple gradient palette, glass morphism, hover-lift cards
+- Added CSS animations: fadeIn, slideUp, slideIn, pulse-gentle, shimmer loading skeletons
+- Dashboard now fetches real stats via API (analyses count, applications count, avg score, recent analyses)
+- ScoreCard: SVG circular gauge with animated gradient stroke
+- Analysis report: vertical card stack with gradient accent stripes, strengths/weaknesses grid
+- Agent stream: vertical timeline with gradient connecting line, rich step descriptions
+- Sidebar: gradient logo, active nav indicator, "Powered by AI" footer
+
+**CI/CD:**
+- Fixed all GitHub Actions jobs (backend-lint, frontend-lint, frontend-build)
